@@ -621,6 +621,28 @@
                 localStorage.setItem(key, JSON.stringify(game));
                 displayGames();
             }
+
+            function exportGames() {
+                const games = getGames();
+                const blob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'games-backup.json';
+                a.click();
+            }
+
+            function importGames(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const games = JSON.parse(e.target.result);
+                    games.forEach(game => addGame(game));
+                    displayGames();
+                    alert(`${games.length} games imported successfully!`);
+                };
+                reader.readAsText(file);
+            }
         </script>
     </head>
     <body>
@@ -727,6 +749,14 @@
 
         <footer>
             GAME TRACKER &mdash; YOUR LIBRARY, YOUR RULES
+            <br>
+            <div style="padding: 1rem 0; display:flex; gap:1rem; justify-content:center;">
+                <button onclick="exportGames()" style="background: transparent; color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; font-weight: normal;">EXPORT</button>
+                <label style="cursor:pointer;">
+                    IMPORT
+                    <input type="file" accept=".json" onchange="importGames(event)" style="display:none;">
+                </label>
+            </div>
         </footer>
     </body>
 </html>
