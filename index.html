@@ -522,7 +522,7 @@
                     if (!key.startsWith('game_')) continue;
                     try { games.push(JSON.parse(localStorage.getItem(key))); } catch(e) {}
                 }
-                return games;
+                return games.sort((a, b) => a.Name.localeCompare(b.Name));
             }
  
             function getPlatformIcon(platform) {
