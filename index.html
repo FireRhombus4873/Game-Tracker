@@ -474,6 +474,23 @@
                 box-shadow: 0 0 20px var(--accent-glow);
             }
 
+            input[type="file"] {
+                background: var(--surface2);
+                border: 1px dashed var(--border);
+                border-radius: var(--radius);
+                color: var(--muted);
+                font-family: var(--font-mono);
+                font-size: 0.72rem;
+                padding: 0.6rem 0.85rem;
+                width: 100%;
+                cursor: pointer;
+            }
+
+            input[type="file"]:hover {
+                border-color: var(--accent);
+                color: var(--text);
+            }
+
             /* ── Footer ── */
             footer {
                 border-top: 1px solid var(--border);
@@ -494,35 +511,54 @@
         </style>
         <script>
             const URL_BASE = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/%gameID%/library_600x900.jpg';
+            const DB_NAME = 'GameTrackerDB';
+            const DB_STORE = 'games';
 
-            function addGame(game) {
-                localStorage.setItem('game_' + game.Id, JSON.stringify(game));
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open(DB_NAME, 1);
+                    req.onupgradeneeded = (e) => e.target.result.createObjectStore(DB_STORE, { keyPath: 'Id' });
+                    req.onsuccess = (e) => resolve(e.target.result);
+                    req.onerror = (e) => reject(e.target.error);
+                });
             }
 
-            function createGame(id, name, platform, status) {
+            function addGame(game) {
+                return openDB().then(db => new Promise((resolve, reject) => {
+                    const tx = db.transaction(DB_STORE, 'readwrite');
+                    tx.objectStore(DB_STORE).put(game);
+                    tx.oncomplete = resolve;
+                    tx.onerror = (e) => reject(e.target.error);
+                }));
+            }
+
+            function createGame(id, name, platform, status, capsuleURL = '') {
                 return {
                     Id: id,
                     Name: name,
                     Platform: platform,
-                    CapsuleURL: URL_BASE.replace('%gameID%', id),
+                    CapsuleURL: capsuleURL,
                     Status: status,
                     DateAdded: new Date().toISOString()
                 };
             }
 
             function deleteGame(id) {
-                localStorage.removeItem('game_' + id);
-                displayGames();
+                openDB().then(db => new Promise((resolve, reject) => {
+                    const tx = db.transaction(DB_STORE, 'readwrite');
+                    tx.objectStore(DB_STORE).delete(id);
+                    tx.oncomplete = resolve;
+                    tx.onerror = (e) => reject(e.target.error);
+                })).then(() => displayGames());
             }
 
             function getGames() {
-                const games = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (!key.startsWith('game_')) continue;
-                    try { games.push(JSON.parse(localStorage.getItem(key))); } catch(e) {}
-                }
-                return games.sort((a, b) => a.Name.localeCompare(b.Name));
+                return openDB().then(db => new Promise((resolve, reject) => {
+                    const tx = db.transaction(DB_STORE, 'readonly');
+                    const req = tx.objectStore(DB_STORE).getAll();
+                    req.onsuccess = (e) => resolve(e.target.result.sort((a, b) => a.Name.localeCompare(b.Name)));
+                    req.onerror = (e) => reject(e.target.error);
+                }));
             }
  
             function getPlatformIcon(platform) {
@@ -536,47 +572,54 @@
                 return 'status-backlog';
             }
 
+            function readFileAsBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
             let activeFilter = 'All';
 
             function displayGames() {
-                const games = getGames().filter(g =>
-                    activeFilter === 'All' || g.Status === activeFilter
-                );
-                const gameContainer = document.querySelector('.game-container');
-                gameContainer.innerHTML = '';
+                getGames().then(allGames => {
+                    const games = allGames.filter(g => activeFilter === 'All' || g.Status === activeFilter);
+                    const gameContainer = document.querySelector('.game-container');
+                    gameContainer.innerHTML = '';
 
-                if (games.length === 0) {
-                    gameContainer.innerHTML = `
-                        <div class="empty-state">
-                            <p>No games here yet.<br>Hit "Add Game" to get started.</p>
-                        </div>`;
-                    return;
-                }
+                    if (games.length === 0) {
+                        gameContainer.innerHTML = `
+                            <div class="empty-state">
+                                <p>No games here yet.<br>Hit "Add Game" to get started.</p>
+                            </div>`;
+                        return;
+                    }
 
-                games.forEach((game, i) => {
-                    const gameElement = document.createElement('div');
-                    gameElement.classList.add('game');
-                    gameElement.style.animationDelay = `${i * 0.04}s`;
-                    
-                    const icon = getPlatformIcon(game.Platform);
-                    const iconHTML = icon ? `<img class="platform-icon" src="${icon}" alt="${game.Platform}">` : '';
+                    games.forEach((game, i) => {
+                        const gameElement = document.createElement('div');
+                        gameElement.classList.add('game');
+                        gameElement.style.animationDelay = `${i * 0.04}s`;
 
-                    gameElement.innerHTML = `
-                        <div class="capsule-wrap">
-                            <img src="${game.CapsuleURL}" alt="${game.Name}" onerror="this.style.background='#1a1f2e';this.removeAttribute('src')">
-                            ${iconHTML}
-                        </div>
-                        <div class="game-info">
-                            <h2>${game.Name}</h2>
-                            <!-- <p>Platform: <span>${game.Platform}</span></p> -->
-                            <!-- <p>Added: <span>${new Date(game.DateAdded).toLocaleDateString()}</span></p> -->
-                            <span class="status-badge ${statusClass(game.Status)}" onclick="event.stopPropagation(); openStatusPopover(this, '${game.Id}')">${game.Status}</span>
-                        </div>
-                        <div class="game-actions">
-                            <button class="btn-delete" onclick="deleteGame('${game.Id}')">Remove</button>
-                        </div>
-                    `;
-                    gameContainer.appendChild(gameElement);
+                        const icon = getPlatformIcon(game.Platform);
+                        const iconHTML = icon ? `<img class="platform-icon" src="${icon}" alt="${game.Platform}">` : '';
+
+                        gameElement.innerHTML = `
+                            <div class="capsule-wrap">
+                                <img src="${game.CapsuleURL}" alt="${game.Name}" onerror="this.style.background='#1a1f2e';this.removeAttribute('src')">
+                                ${iconHTML}
+                            </div>
+                            <div class="game-info">
+                                <h2>${game.Name}</h2>
+                                <span class="status-badge ${statusClass(game.Status)}" onclick="event.stopPropagation(); openStatusPopover(this, '${game.Id}')">${game.Status}</span>
+                            </div>
+                            <div class="game-actions">
+                                <button class="btn-delete" onclick="deleteGame('${game.Id}')">Remove</button>
+                            </div>
+                        `;
+                        gameContainer.appendChild(gameElement);
+                    });
                 });
             }
 
@@ -614,21 +657,26 @@
             }
 
             function updateGameStatus(gameId, newStatus) {
-                const key = 'game_' + gameId;
-                const game = JSON.parse(localStorage.getItem(key));
-                if (!game) return;
-                game.Status = newStatus;
-                localStorage.setItem(key, JSON.stringify(game));
-                displayGames();
+                openDB().then(db => new Promise((resolve, reject) => {
+                    const tx = db.transaction(DB_STORE, 'readonly');
+                    const req = tx.objectStore(DB_STORE).get(gameId);
+                    req.onsuccess = (e) => resolve(e.target.result);
+                    req.onerror = (e) => reject(e.target.error);
+                })).then(game => {
+                    if (!game) return;
+                    game.Status = newStatus;
+                    return addGame(game);
+                }).then(() => displayGames());
             }
 
             function exportGames() {
-                const games = getGames();
-                const blob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'games-backup.json';
-                a.click();
+                getGames().then(games => {
+                    const blob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'games-backup.json';
+                    a.click();
+                });
             }
 
             function importGames(event) {
@@ -637,9 +685,10 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const games = JSON.parse(e.target.result);
-                    games.forEach(game => addGame(game));
-                    displayGames();
-                    alert(`${games.length} games imported successfully!`);
+                    Promise.all(games.map(game => addGame(game))).then(() => {
+                        displayGames();
+                        alert(`${games.length} games imported successfully!`);
+                    });
                 };
                 reader.readAsText(file);
             }
@@ -666,6 +715,10 @@
                         <div class="form-group">
                             <label for="game-id">Steam App ID <small style="opacity:0.5">(for cover art)</small></label>
                             <input type="text" id="game-id" placeholder="e.g. 292030">
+                        </div>
+                        <div class="form-group" id="custom-art-group">
+                            <label for="game-art">Custom Cover Art</label>
+                            <input type="file" id="game-art" accept="image/*">
                         </div>
                         <div class="form-group">
                             <label for="game-name">Game Name</label>
@@ -716,21 +769,40 @@
 
                 form.onsubmit = function(e) {
                     e.preventDefault();
-                    const id       = document.getElementById('game-id').value.trim() || Date.now().toString();
-                    const name     = document.getElementById('game-name').value.trim();
-
+                    const idInput    = document.getElementById('game-id').value.trim();
+                    const name       = document.getElementById('game-name').value.trim();
                     const platformSelect = document.getElementById('game-platform-select');
-                    const platform = platformSelect.value === '__custom__'
+                    const platform   = platformSelect.value === '__custom__'
                         ? document.getElementById('game-platform-custom').value.trim()
                         : platformSelect.value;
-                    if (!platform) return; // guard against empty custom input
+                    const status     = document.getElementById('game-status').value;
 
-                    const status   = document.getElementById('game-status').value;
                     if (!name || !platform || !status) return;
-                    addGame(createGame(id, name, platform, status));
-                    form.reset();
-                    modal.classList.remove('open');
-                    displayGames();
+
+                    const id = idInput || Date.now().toString();
+                    const artInput = document.getElementById('game-art');
+                    const artFile = artInput && artInput.files && artInput.files.length > 0 ? artInput.files[0] : null;
+
+                    function finish(capsuleURL) {
+                        const game = createGame(id, name, platform, status, capsuleURL);
+                        addGame(game).then(() => {
+                            form.reset();
+                            document.getElementById('custom-art-group').style.display = 'block';
+                            modal.classList.remove('open');
+                            displayGames();
+                        });
+                    }
+
+                    if (idInput) {
+                        finish(URL_BASE.replace('%gameID%', idInput));
+                    } else if (artFile) {
+                        const reader = new FileReader();
+                        reader.onload = function() { finish(reader.result); };
+                        reader.onerror = function() { finish(''); };
+                        reader.readAsDataURL(artFile);
+                    } else {
+                        finish('');
+                    }
                 };
             </script>
 
@@ -771,6 +843,15 @@
                 activeFilter = btn.dataset.filter;
                 displayGames();
             });
+        });
+
+        document.getElementById('game-id').addEventListener('input', function() {
+            const customArtGroup = document.getElementById('custom-art-group');
+            customArtGroup.style.display = this.value.trim() ? 'none' : 'block';
+        });
+
+        document.getElementById('game-art').addEventListener('change', function() {
+            pendingArtFile = this.files[0] || null;
         });
     });
 </script>
