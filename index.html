@@ -1,838 +1,1195 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Game Tracker</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-        <style>
-            /* ── Reset & Variables ── */
-            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-            :root {
-                --bg:          #0a0c10;
-                --surface:     #111520;
-                --surface2:    #1a1f2e;
-                --border:      #232a3d;
-                --accent:      #00e5ff;
-                --accent-dim:  #00a8bb;
-                --accent-glow: rgba(0, 229, 255, 0.18);
-                --danger:      #ff3860;
-                --text:        #dce6f0;
-                --muted:       #5a6a82;
-                --radius:      6px;
-                --transition:  0.2s ease;
-                --font-head:   'Rajdhani', sans-serif;
-                --font-mono:   'Share Tech Mono', monospace;
-            }
-
-            /* ── Base ── */
-            html { scroll-behavior: smooth; }
-
-            body {
-                background-color: var(--bg);
-                background-image:
-                    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 70%),
-                    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px),
-                    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px);
-                color: var(--text);
-                font-family: var(--font-head);
-                font-size: 16px;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-            }
-
-            /* ── Nav ── */
-            header {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                background: rgba(10, 12, 16, 0.85);
-                backdrop-filter: blur(12px);
-                border-bottom: 1px solid var(--border);
-            }
-
-            nav ul {
-                list-style: none;
-                display: flex;
-                align-items: center;
-                gap: 1.5rem;
-                padding: 0 2rem;
-                height: 58px;
-            }
-
-            nav ul li:first-child {
-                margin-right: auto;
-            }
-
-            nav a {
-                color: var(--accent);
-                text-decoration: none;
-                font-family: var(--font-mono);
-                font-size: 0.85rem;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                opacity: 0.75;
-                transition: opacity var(--transition);
-            }
-
-            nav a:hover { opacity: 1; }
-
-            /* ── Buttons ── */
-            button {
-                cursor: pointer;
-                font-family: var(--font-head);
-                font-weight: 600;
-                letter-spacing: 0.08em;
-                border: none;
-                border-radius: var(--radius);
-                transition: all var(--transition);
-            }
-
-            #open-modal {
-                background: var(--accent);
-                color: #000;
-                padding: 0.45rem 1.2rem;
-                font-size: 0.9rem;
-                text-transform: uppercase;
-            }
-
-            #open-modal:hover {
-                background: #fff;
-                box-shadow: 0 0 18px var(--accent-glow);
-            }
-
-            /* ── Main ── */
-            main {
-                flex: 1;
-                max-width: 1400px;
-                width: 100%;
-                margin: 0 auto;
-                padding: 2.5rem 2rem 4rem;
-            }
-
-            #home {
-                font-family: var(--font-head);
-                font-size: clamp(2rem, 5vw, 3.2rem);
-                font-weight: 700;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--text);
-                margin-bottom: 0.25rem;
-            }
-
-            #home span {
-                color: var(--accent);
-            }
-
-            .subtitle {
-                font-family: var(--font-mono);
-                font-size: 0.8rem;
-                color: var(--muted);
-                letter-spacing: 0.12em;
-                margin-bottom: 2.5rem;
-            }
-
-            /* ── Filter Bar ── */
-            .filter-bar {
-                display: flex;
-                gap: 0.5rem;
-                margin-bottom: 2rem;
-                flex-wrap: wrap;
-            }
-
-            .filter-btn {
-                background: var(--surface);
-                color: var(--muted);
-                border: 1px solid var(--border);
-                padding: 0.4rem 1rem;
-                font-size: 0.85rem;
-                text-transform: uppercase;
-                border-radius: 99px;
-            }
-
-            .filter-btn:hover,
-            .filter-btn.active {
-                background: var(--surface2);
-                color: var(--accent);
-                border-color: var(--accent);
-                box-shadow: 0 0 10px var(--accent-glow);
-            }
-
-            /* ── Game Grid ── */
-            .game-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-                gap: 1.25rem;
-            }
-
-            .game {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: var(--radius);
-                display: flex;
-                flex-direction: column;
-                transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
-                animation: fadeIn 0.35s ease both;
-            }
-
-            .game:hover {
-                transform: translateY(-4px);
-                border-color: var(--accent-dim);
-                box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px var(--accent-dim);
-            }
-
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(10px); }
-                to   { opacity: 1; transform: translateY(0); }
-            }
-
-            .game-info {
-                padding: 0.75rem;
-                display: flex;
-                flex-direction: column;
-                gap: 0.3rem;
-                flex: 1;
-            }
-
-            .game h2 {
-                font-size: 0.95rem;
-                font-weight: 700;
-                line-height: 1.3;
-                letter-spacing: 0.03em;
-                color: var(--text);
-            }
-
-            .game p {
-                font-family: var(--font-mono);
-                font-size: 0.72rem;
-                color: var(--muted);
-            }
-
-            .game p span {
-                color: var(--text);
-            }
-
-            /* ── Capsule Wrap ── */
-            .capsule-wrap {
-                position: relative;
-            }
-
-            .capsule-wrap > img {
-                width: 100%;
-                aspect-ratio: 2 / 3;
-                object-fit: cover;
-                display: block;
-                background: var(--surface2);
-                border-radius: var(--radius) var(--radius) 0 0;
-            }
-
-            .platform-icon {
-                position: absolute;
-                bottom: 8px;
-                left: 8px;
-                width: 28px !important;
-                height: 28px !important;
-                background: transparent !important;
-                object-fit: contain;
-                filter: drop-shadow(0 0 3px rgba(255,255,255,0.8)) drop-shadow(0 1px 4px rgba(0,0,0,0.9));
-                opacity: 0.9;
-            }
-
-            /* ── Status Badge ── */
-            .status-badge {
-                display: inline-block;
-                padding: 0.15rem 0.55rem;
-                border-radius: 99px;
-                font-family: var(--font-mono);
-                font-size: 0.65rem;
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                margin-top: 0.25rem;
-                width: fit-content;
-                cursor: pointer;
-                position: relative;
-                user-select: none;
-            }
-            
-            .status-badge:hover {
-                filter: brightness(1.3);
-            }
-
-            .status-played    { background: rgba(0,229,255,0.12); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
-            .status-playing   { background: rgba(255,200,0,0.12);  color: #ffc800;       border: 1px solid rgba(255,200,0,0.3); }
-            .status-backlog   { background: rgba(90,106,130,0.15); color: var(--muted);  border: 1px solid rgba(90,106,130,0.3); }
-
-            /* ── Delete button on card ── */
-            .game-actions {
-                padding: 0 0.75rem 0.75rem;
-            }
-
-            /* ── Status Popover ── */
-            .status-popover {
-                position: absolute;
-                background: var(--surface2);
-                border: 1px solid var(--accent-dim);
-                border-radius: var(--radius);
-                box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-                padding: 0.35rem;
-                display: flex;
-                flex-direction: column;
-                gap: 0.2rem;
-                z-index: 300;
-                min-width: 120px;
-                animation: slideUp 0.15s ease;
-            }
-
-            .status-popover button {
-                background: transparent;
-                color: var(--text);
-                font-family: var(--font-mono);
-                font-size: 0.72rem;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                padding: 0.4rem 0.65rem;
-                border-radius: calc(var(--radius) - 2px);
-                text-align: left;
-            }
-
-            .status-popover button:hover {
-                background: var(--accent-glow);
-                color: var(--accent);
-            }
-
-            .btn-delete {
-                background: transparent;
-                color: var(--muted);
-                font-size: 0.72rem;
-                padding: 0.3rem 0.6rem;
-                border: 1px solid var(--border);
-                border-radius: var(--radius);
-                width: 100%;
-                text-transform: uppercase;
-                letter-spacing: 0.06em;
-            }
-
-            .btn-delete:hover {
-                background: rgba(255,56,96,0.1);
-                color: var(--danger);
-                border-color: var(--danger);
-            }
-
-            /* ── Empty State ── */
-            .empty-state {
-                grid-column: 1 / -1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 1rem;
-                padding: 5rem 2rem;
-                color: var(--muted);
-                text-align: center;
-            }
-
-            .empty-state .icon {
-                font-size: 3rem;
-                opacity: 0.3;
-            }
-
-            .empty-state p {
-                font-family: var(--font-mono);
-                font-size: 0.85rem;
-                letter-spacing: 0.08em;
-            }
-
-            /* ── Modal Overlay ── */
-            .modal {
-                display: none;
-                position: fixed;
-                z-index: 200;
-                inset: 0;
-                background: rgba(0,0,0,0.7);
-                backdrop-filter: blur(4px);
-                align-items: center;
-                justify-content: center;
-            }
-
-            .modal.open {
-                display: flex;
-            }
-
-            .modal-box {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                width: min(480px, calc(100vw - 2rem));
-                box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px var(--accent-dim);
-                animation: slideUp 0.25s ease;
-                overflow: hidden;
-            }
-
-            @keyframes slideUp {
-                from { opacity: 0; transform: translateY(20px); }
-                to   { opacity: 1; transform: translateY(0); }
-            }
-
-            .modal-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 1.1rem 1.5rem;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .modal-header h2 {
-                font-size: 1.1rem;
-                font-weight: 700;
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                color: var(--accent);
-            }
-
-            #close-modal {
-                background: transparent;
-                color: var(--muted);
-                font-size: 1.4rem;
-                line-height: 1;
-                padding: 0.1rem 0.3rem;
-                border-radius: var(--radius);
-            }
-
-            #close-modal:hover {
-                color: var(--text);
-                background: var(--surface2);
-            }
-
-            /* ── Form ── */
-            #add-game-form {
-                padding: 1.5rem;
-                display: flex;
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .form-group {
-                display: flex;
-                flex-direction: column;
-                gap: 0.4rem;
-            }
-
-            .form-group label {
-                font-family: var(--font-mono);
-                font-size: 0.72rem;
-                color: var(--muted);
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-            }
-
-            #add-game-form input,
-            #add-game-form select {
-                background: var(--surface2);
-                border: 1px solid var(--border);
-                border-radius: var(--radius);
-                color: var(--text);
-                font-family: var(--font-head);
-                font-size: 0.95rem;
-                padding: 0.6rem 0.85rem;
-                outline: none;
-                transition: border-color var(--transition), box-shadow var(--transition);
-                width: 100%;
-            }
-
-            #add-game-form input::placeholder { color: var(--muted); }
-
-            #add-game-form input:focus,
-            #add-game-form select:focus {
-                border-color: var(--accent);
-                box-shadow: 0 0 0 3px var(--accent-glow);
-            }
-
-            #add-game-form select option {
-                background: var(--surface2);
-            }
-
-            #add-game-form button[type="submit"] {
-                background: var(--accent);
-                color: #000;
-                padding: 0.7rem;
-                font-size: 0.95rem;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                margin-top: 0.25rem;
-            }
-
-            #add-game-form button[type="submit"]:hover {
-                background: #fff;
-                box-shadow: 0 0 20px var(--accent-glow);
-            }
-
-            input[type="file"] {
-                background: var(--surface2);
-                border: 1px dashed var(--border);
-                border-radius: var(--radius);
-                color: var(--muted);
-                font-family: var(--font-mono);
-                font-size: 0.72rem;
-                padding: 0.6rem 0.85rem;
-                width: 100%;
-                cursor: pointer;
-            }
-
-            input[type="file"]:hover {
-                border-color: var(--accent);
-                color: var(--text);
-            }
-
-            /* ── Footer ── */
-            footer {
-                border-top: 1px solid var(--border);
-                padding: 1rem 2rem;
-                font-family: var(--font-mono);
-                font-size: 0.72rem;
-                color: var(--muted);
-                text-align: center;
-                letter-spacing: 0.1em;
-            }
-
-            /* ── Responsive ── */
-            @media (max-width: 600px) {
-                nav ul { padding: 0 1rem; }
-                main { padding: 1.5rem 1rem 3rem; }
-                .game-container { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-            }
-        </style>
-        <script>
-            const URL_BASE = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/%gameID%/library_600x900.jpg';
-            const DB_NAME = 'GameTrackerDB';
-            const DB_STORE = 'games';
-
-            function openDB() {
-                return new Promise((resolve, reject) => {
-                    const req = indexedDB.open(DB_NAME, 1);
-                    req.onupgradeneeded = (e) => e.target.result.createObjectStore(DB_STORE, { keyPath: 'Id' });
-                    req.onsuccess = (e) => resolve(e.target.result);
-                    req.onerror = (e) => reject(e.target.error);
-                });
-            }
-
-            function addGame(game) {
-                return openDB().then(db => new Promise((resolve, reject) => {
-                    const tx = db.transaction(DB_STORE, 'readwrite');
-                    tx.objectStore(DB_STORE).put(game);
-                    tx.oncomplete = resolve;
-                    tx.onerror = (e) => reject(e.target.error);
-                }));
-            }
-
-            function createGame(id, name, platform, status, capsuleURL = '') {
-                return {
-                    Id: id,
-                    Name: name,
-                    Platform: platform,
-                    CapsuleURL: capsuleURL,
-                    Status: status,
-                    DateAdded: new Date().toISOString()
-                };
-            }
-
-            function deleteGame(id) {
-                openDB().then(db => new Promise((resolve, reject) => {
-                    const tx = db.transaction(DB_STORE, 'readwrite');
-                    tx.objectStore(DB_STORE).delete(id);
-                    tx.oncomplete = resolve;
-                    tx.onerror = (e) => reject(e.target.error);
-                })).then(() => displayGames());
-            }
-
-            function getGames() {
-                return openDB().then(db => new Promise((resolve, reject) => {
-                    const tx = db.transaction(DB_STORE, 'readonly');
-                    const req = tx.objectStore(DB_STORE).getAll();
-                    req.onsuccess = (e) => resolve(e.target.result.sort((a, b) => a.Name.localeCompare(b.Name)));
-                    req.onerror = (e) => reject(e.target.error);
-                }));
-            }
- 
-            function getPlatformIcon(platform) {
-                const icons = { 'Steam': 'steam.svg', 'Epic': 'epic.svg', 'Pirated': 'pirate.svg' };
-                return icons[platform] || null;
-            }
-
-            function statusClass(status) {
-                if (status === 'Played')   return 'status-played';
-                if (status === 'Playing')  return 'status-playing';
-                return 'status-backlog';
-            }
-
-            let activeFilter = 'All';
-
-            function displayGames() {
-                getGames().then(allGames => {
-                    const games = allGames.filter(g => activeFilter === 'All' || g.Status === activeFilter);
-                    const gameContainer = document.querySelector('.game-container');
-                    gameContainer.innerHTML = '';
-
-                    if (games.length === 0) {
-                        gameContainer.innerHTML = `
-                            <div class="empty-state">
-                                <p>No games here yet.<br>Hit "Add Game" to get started.</p>
-                            </div>`;
-                        return;
-                    }
-
-                    games.forEach((game, i) => {
-                        const gameElement = document.createElement('div');
-                        gameElement.classList.add('game');
-                        gameElement.style.animationDelay = `${i * 0.04}s`;
-
-                        const icon = getPlatformIcon(game.Platform);
-                        const iconHTML = icon ? `<img class="platform-icon" src="${icon}" alt="${game.Platform}">` : '';
-
-                        gameElement.innerHTML = `
-                            <div class="capsule-wrap">
-                                <img src="${game.CapsuleURL}" alt="${game.Name}" onerror="this.style.background='#1a1f2e';this.removeAttribute('src')">
-                                ${iconHTML}
-                            </div>
-                            <div class="game-info">
-                                <h2>${game.Name}</h2>
-                                <span class="status-badge ${statusClass(game.Status)}" onclick="event.stopPropagation(); openStatusPopover(this, '${game.Id}')">${game.Status}</span>
-                            </div>
-                            <div class="game-actions">
-                                <button class="btn-delete" onclick="deleteGame('${game.Id}')">Remove</button>
-                            </div>
-                        `;
-                        gameContainer.appendChild(gameElement);
-                    });
-                });
-            }
-
-            function openStatusPopover(badge, gameId) {
-                // Close any existing popover first
-                closeStatusPopover();
-
-                const popover = document.createElement('div');
-                popover.className = 'status-popover';
-                popover.id = 'status-popover';
-
-                const statuses = ['Playing', 'Played', 'Backlog'];
-                statuses.forEach(status => {
-                    const btn = document.createElement('button');
-                    btn.textContent = status;
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        updateGameStatus(gameId, status);
-                        closeStatusPopover();
-                    };
-                    popover.appendChild(btn);
-                });
-
-                badge.appendChild(popover);
-
-                // Close when clicking outside
-                setTimeout(() => {
-                    document.addEventListener('click', closeStatusPopover, { once: true });
-                }, 0);
-            }
-
-            function closeStatusPopover() {
-                const existing = document.getElementById('status-popover');
-                if (existing) existing.remove();
-            }
-
-            function updateGameStatus(gameId, newStatus) {
-                openDB().then(db => new Promise((resolve, reject) => {
-                    const tx = db.transaction(DB_STORE, 'readonly');
-                    const req = tx.objectStore(DB_STORE).get(gameId);
-                    req.onsuccess = (e) => resolve(e.target.result);
-                    req.onerror = (e) => reject(e.target.error);
-                })).then(game => {
-                    if (!game) return;
-                    game.Status = newStatus;
-                    return addGame(game);
-                }).then(() => displayGames());
-            }
-
-            function exportGames() {
-                getGames().then(games => {
-                    const blob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'games-backup.json';
-                    a.click();
-                });
-            }
-
-            function importGames(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const games = JSON.parse(e.target.result);
-                    Promise.all(games.map(game => addGame(game))).then(() => {
-                        displayGames();
-                        alert(`${games.length} games imported successfully!`);
-                    });
-                };
-                reader.readAsText(file);
-            }
-        </script>
-    </head>
-    <body>
-        <header>
-            <nav>
-                <ul>
-                    <li><a href="#home">&#9632; GAME TRACKER</a></li>
-                    <li><button id="open-modal">+ Add Game</button></li>
-                </ul>
-            </nav>
-        </header>
-
-        <main>
-            <div id="add-game-modal" class="modal">
-                <div class="modal-box">
-                    <div class="modal-header">
-                        <h2>Add Game</h2>
-                        <button id="close-modal">&times;</button>
-                    </div>
-                    <form id="add-game-form">
-                        <div class="form-group">
-                            <label for="game-id">Steam App ID <small style="opacity:0.5">(for cover art)</small></label>
-                            <input type="text" id="game-id" placeholder="e.g. 292030">
-                        </div>
-                        <div class="form-group" id="custom-art-group">
-                            <label for="game-art">Custom Cover Art</label>
-                            <input type="file" id="game-art" accept="image/*">
-                        </div>
-                        <div class="form-group">
-                            <label for="game-name">Game Name</label>
-                            <input type="text" id="game-name" placeholder="e.g. The Witcher 3" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="game-platform">Platform</label>
-                            <select id="game-platform-select">
-                                <option value="" disabled selected>Select a platform</option>
-                                <option value="Steam">Steam</option>
-                                <option value="Epic">Epic</option>
-                                <option value="Pirated">Pirated</option>
-                                <option value="__custom__">Other (specify...)</option>
-                            </select>
-                            <input type="text" id="game-platform-custom" placeholder="Enter platform name..."
-                                style="display:none; margin-top: 0.5rem;">
-                        </div>
-                        <div class="form-group">
-                            <label for="game-status">Status</label>
-                            <select id="game-status" required>
-                                <option value="" disabled selected>Select a status</option>
-                                <option value="Playing">Playing</option>
-                                <option value="Played">Played</option>
-                                <option value="Backlog">Backlog</option>
-                            </select>
-                        </div>
-                        <button type="submit">Add to Library</button>
-                    </form>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Variables ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:          #0a0c10;
+            --surface:     #111520;
+            --surface2:    #1a1f2e;
+            --border:      #232a3d;
+            --accent:      #00e5ff;
+            --accent-dim:  #00a8bb;
+            --accent-glow: rgba(0, 229, 255, 0.18);
+            --danger:      #ff3860;
+            --text:        #dce6f0;
+            --muted:       #5a6a82;
+            --radius:      6px;
+            --transition:  0.2s ease;
+            --font-head:   'Rajdhani', sans-serif;
+            --font-mono:   'Share Tech Mono', monospace;
+            --panel-width: 420px;
+        }
+
+        /* ── Base ── */
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 70%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px);
+            color: var(--text);
+            font-family: var(--font-head);
+            font-size: 16px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Nav ── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 12, 16, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 0 2rem;
+            height: 58px;
+        }
+
+        nav ul li:first-child { margin-right: auto; }
+
+        nav a {
+            color: var(--accent);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            opacity: 0.75;
+            transition: opacity var(--transition);
+        }
+
+        nav a:hover { opacity: 1; }
+
+        /* ── Buttons ── */
+        button {
+            cursor: pointer;
+            font-family: var(--font-head);
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            border: none;
+            border-radius: var(--radius);
+            transition: all var(--transition);
+        }
+
+        #open-modal {
+            background: var(--accent);
+            color: #000;
+            padding: 0.45rem 1.2rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        #open-modal:hover {
+            background: #fff;
+            box-shadow: 0 0 18px var(--accent-glow);
+        }
+
+        /* ── Main ── */
+        main {
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 4rem;
+            transition: padding-right var(--transition);
+        }
+
+        #home {
+            font-family: var(--font-head);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        #home span { color: var(--accent); }
+
+        .subtitle {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            margin-bottom: 2.5rem;
+        }
+
+        /* ── Filter Bar ── */
+        .filter-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--surface);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            border-radius: 99px;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--surface2);
+            color: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* ── Game Grid ── */
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .game {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+            animation: fadeIn 0.35s ease both;
+        }
+
+        .game:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-dim);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px var(--accent-dim);
+            z-index: 10;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Capsule Wrap ── */
+        .capsule-wrap {
+            position: relative;
+            border-radius: var(--radius) var(--radius) 0 0;
+            overflow: hidden;
+        }
+
+        .capsule-wrap > img {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+            display: block;
+            background: var(--surface2);
+        }
+
+        .platform-icon {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            width: 28px !important;
+            height: 28px !important;
+            background: transparent !important;
+            object-fit: contain;
+            filter: drop-shadow(0 0 3px rgba(255,255,255,0.8)) drop-shadow(0 1px 4px rgba(0,0,0,0.9));
+            opacity: 0.9;
+        }
+
+        /* ── Game Info ── */
+        .game-info {
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex: 1;
+        }
+
+        .game h2 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1.3;
+            letter-spacing: 0.03em;
+            color: var(--text);
+        }
+
+        /* ── Status Badge ── */
+        .status-badge {
+            display: inline-block;
+            padding: 0.15rem 0.55rem;
+            border-radius: 99px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+            width: fit-content;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .status-badge:hover { filter: brightness(1.3); }
+
+        .status-played  { background: rgba(0,229,255,0.12); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
+        .status-playing { background: rgba(255,200,0,0.12);  color: #ffc800;       border: 1px solid rgba(255,200,0,0.3); }
+        .status-backlog { background: rgba(90,106,130,0.15); color: var(--muted);  border: 1px solid rgba(90,106,130,0.3); }
+
+        /* ── Status Popover ── */
+        .status-popover {
+            background: var(--surface2);
+            border: 1px solid var(--accent-dim);
+            border-radius: var(--radius);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            padding: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            z-index: 500;
+            min-width: 120px;
+            animation: slideUp 0.15s ease;
+        }
+
+        .status-popover button {
+            background: transparent;
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.4rem 0.65rem;
+            border-radius: calc(var(--radius) - 2px);
+            text-align: left;
+        }
+
+        .status-popover button:hover {
+            background: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        /* ── Delete Button ── */
+        .game-actions { padding: 0 0.75rem 0.75rem; }
+
+        .btn-delete {
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.72rem;
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .btn-delete:hover {
+            background: rgba(255,56,96,0.1);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* ── Empty State ── */
+        .empty-state {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 5rem 2rem;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .empty-state p {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 0.08em;
+        }
+
+        /* ── Detail Panel ── */
+        .detail-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: var(--panel-width);
+            height: 100vh;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .detail-panel.open {
+            transform: translateX(0);
+        }
+
+        .detail-panel-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 140;
+            display: none;
+        }
+
+        .detail-panel-backdrop.open {
+            display: block;
+        }
+
+        /* ── Panel Header ── */
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .panel-header span {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        #close-panel {
+            background: transparent;
+            color: var(--muted);
+            font-size: 1.4rem;
+            line-height: 1;
+            padding: 0.1rem 0.4rem;
+            border-radius: var(--radius);
+        }
+
+        #close-panel:hover {
+            color: var(--text);
+            background: var(--surface2);
+        }
+
+        /* ── Panel Content ── */
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .panel-content::-webkit-scrollbar { width: 4px; }
+        .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .panel-hero {
+            position: relative;
+            width: 100%;
+        }
+
+        .panel-hero img {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+            display: block;
+            background: var(--surface2);
+            max-height: 280px;
+            object-position: top;
+        }
+
+        .panel-hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 40%, var(--surface) 100%);
+        }
+
+        .panel-hero-title {
+            position: absolute;
+            bottom: 1rem;
+            left: 1.25rem;
+            right: 1.25rem;
+        }
+
+        .panel-hero-title h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            line-height: 1.2;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .panel-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        /* ── Panel Meta Row ── */
+        .panel-meta {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .panel-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .panel-meta-label {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .panel-meta-value {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text);
+        }
+
+        /* ── Panel Divider ── */
+        .panel-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── Panel Fields ── */
+        .panel-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .panel-field label {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .panel-field textarea,
+        .panel-field input[type="number"],
+        .panel-field input[type="text"] {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            padding: 0.6rem 0.85rem;
+            outline: none;
+            width: 100%;
+            transition: border-color var(--transition), box-shadow var(--transition);
+            resize: none;
+        }
+
+        .panel-field textarea { min-height: 90px; }
+
+        .panel-field textarea:focus,
+        .panel-field input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .panel-field textarea::placeholder,
+        .panel-field input::placeholder { color: var(--muted); }
+
+        /* ── Star Rating ── */
+        .star-rating {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .star {
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--border);
+            transition: color var(--transition), transform var(--transition);
+            user-select: none;
+        }
+
+        .star.active,
+        .star:hover { color: #ffc800; }
+
+        .star:hover { transform: scale(1.2); }
+
+        /* ── Save Button ── */
+        .btn-save {
+            background: var(--accent);
+            color: #000;
+            padding: 0.65rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            width: 100%;
+            border-radius: var(--radius);
+        }
+
+        .btn-save:hover {
+            background: #fff;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .btn-save-confirm {
+            background: transparent !important;
+            color: var(--accent) !important;
+            border: 1px solid var(--accent);
+            box-shadow: none !important;
+        }
+
+        /* ── Modal Overlay ── */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.open { display: flex; }
+
+        .modal-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            width: min(480px, calc(100vw - 2rem));
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px var(--accent-dim);
+            animation: slideUp 0.25s ease;
+            overflow: hidden;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        #close-modal {
+            background: transparent;
+            color: var(--muted);
+            font-size: 1.4rem;
+            line-height: 1;
+            padding: 0.1rem 0.3rem;
+            border-radius: var(--radius);
+        }
+
+        #close-modal:hover {
+            color: var(--text);
+            background: var(--surface2);
+        }
+
+        /* ── Form ── */
+        #add-game-form {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .form-group label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        #add-game-form input,
+        #add-game-form select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font-head);
+            font-size: 0.95rem;
+            padding: 0.6rem 0.85rem;
+            outline: none;
+            transition: border-color var(--transition), box-shadow var(--transition);
+            width: 100%;
+        }
+
+        #add-game-form input::placeholder { color: var(--muted); }
+
+        #add-game-form input:focus,
+        #add-game-form select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        #add-game-form select option { background: var(--surface2); }
+
+        #add-game-form button[type="submit"] {
+            background: var(--accent);
+            color: #000;
+            padding: 0.7rem;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 0.25rem;
+        }
+
+        #add-game-form button[type="submit"]:hover {
+            background: #fff;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        input[type="file"] {
+            background: var(--surface2);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+            color: var(--muted);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            padding: 0.6rem 0.85rem;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        input[type="file"]:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 1rem 2rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-align: center;
+            letter-spacing: 0.1em;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            nav ul { padding: 0 1rem; }
+            main { padding: 1.5rem 1rem 3rem; }
+            .game-container { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+            .detail-panel { width: 100vw; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#home">&#9632; GAME TRACKER</a></li>
+                <li><button id="open-modal">+ Add Game</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Add Game Modal -->
+        <div id="add-game-modal" class="modal">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>Add Game</h2>
+                    <button id="close-modal">&times;</button>
                 </div>
+                <form id="add-game-form">
+                    <div class="form-group">
+                        <label for="game-id">Steam App ID <small style="opacity:0.5">(for cover art)</small></label>
+                        <input type="text" id="game-id" placeholder="e.g. 292030">
+                    </div>
+                    <div class="form-group" id="custom-art-group">
+                        <label for="game-art">Custom Cover Art</label>
+                        <input type="file" id="game-art" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="game-name">Game Name</label>
+                        <input type="text" id="game-name" placeholder="e.g. The Witcher 3" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="game-platform">Platform</label>
+                        <select id="game-platform-select">
+                            <option value="" disabled selected>Select a platform</option>
+                            <option value="Steam">Steam</option>
+                            <option value="Epic">Epic</option>
+                            <option value="Pirated">Pirated</option>
+                            <option value="__custom__">Other (specify...)</option>
+                        </select>
+                        <input type="text" id="game-platform-custom" placeholder="Enter platform name..." style="display:none; margin-top: 0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label for="game-status">Status</label>
+                        <select id="game-status" required>
+                            <option value="" disabled selected>Select a status</option>
+                            <option value="Playing">Playing</option>
+                            <option value="Played">Played</option>
+                            <option value="Backlog">Backlog</option>
+                        </select>
+                    </div>
+                    <button type="submit">Add to Library</button>
+                </form>
             </div>
+        </div>
 
-            <h1 id="home">Game <span style="color:var(--accent)">Tracker</span></h1>
-            <p class="subtitle">// YOUR PERSONAL LIBRARY</p>
+        <h1 id="home">Game <span>Tracker</span></h1>
+        <p class="subtitle">// YOUR PERSONAL LIBRARY</p>
 
-            <div class="filter-bar">
-                <button class="filter-btn active" data-filter="All">All</button>
-                <button class="filter-btn" data-filter="Playing">Playing</button>
-                <button class="filter-btn" data-filter="Played">Played</button>
-                <button class="filter-btn" data-filter="Backlog">Backlog</button>
-            </div>
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="All">All</button>
+            <button class="filter-btn" data-filter="Playing">Playing</button>
+            <button class="filter-btn" data-filter="Played">Played</button>
+            <button class="filter-btn" data-filter="Backlog">Backlog</button>
+        </div>
 
-            <div class="game-container"></div>
-        </main>
+        <div class="game-container"></div>
+    </main>
 
-        <footer>
-            GAME TRACKER &mdash; YOUR LIBRARY, YOUR RULES
-            <br>
-            <div style="padding: 1rem 0; display:flex; gap:1rem; justify-content:center;">
-                <button onclick="exportGames()" style="background: transparent; color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; font-weight: normal;">EXPORT</button>
-                <label style="cursor:pointer;">
-                    IMPORT
-                    <input type="file" accept=".json" onchange="importGames(event)" style="display:none;">
-                </label>
-            </div>
-        </footer>
+    <!-- Detail Panel -->
+    <div class="detail-panel-backdrop" id="panel-backdrop"></div>
+    <aside class="detail-panel" id="detail-panel">
+        <div class="panel-header">
+            <span>// GAME DETAILS</span>
+            <button id="close-panel">&times;</button>
+        </div>
+        <div class="panel-content" id="panel-content">
+            <!-- filled dynamically -->
+        </div>
+    </aside>
 
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
+    <footer>
+        GAME TRACKER &mdash; YOUR LIBRARY, YOUR RULES
+        <div style="padding: 1rem 0; display:flex; gap:1rem; justify-content:center;">
+            <button onclick="exportGames()" style="background:transparent; color:var(--muted); font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.1em; font-weight:normal;">EXPORT</button>
+            <label style="cursor:pointer; font-family:var(--font-mono); font-size:0.72rem; color:var(--muted); letter-spacing:0.1em;">
+                IMPORT
+                <input type="file" accept=".json" onchange="importGames(event)" style="display:none;">
+            </label>
+        </div>
+    </footer>
+
+    <script>
+        /* ── DB ── */
+        const URL_BASE = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/%gameID%/library_600x900.jpg';
+        const DB_NAME  = 'GameTrackerDB';
+        const DB_STORE = 'games';
+        let dbPromise  = null;
+
+        function openDB() {
+            if (!dbPromise) dbPromise = new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = (e) => e.target.result.createObjectStore(DB_STORE, { keyPath: 'Id' });
+                req.onsuccess  = (e) => resolve(e.target.result);
+                req.onerror    = (e) => reject(e.target.error);
+            });
+            return dbPromise;
+        }
+
+        function addGame(game) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                tx.objectStore(DB_STORE).put(game);
+                tx.oncomplete = resolve;
+                tx.onerror    = (e) => reject(e.target.error);
+            }));
+        }
+
+        function getGames() {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const tx  = db.transaction(DB_STORE, 'readonly');
+                const req = tx.objectStore(DB_STORE).getAll();
+                req.onsuccess = (e) => resolve(e.target.result.sort((a, b) => a.Name.localeCompare(b.Name)));
+                req.onerror   = (e) => reject(e.target.error);
+            }));
+        }
+
+        function getGame(id) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const tx  = db.transaction(DB_STORE, 'readonly');
+                const req = tx.objectStore(DB_STORE).get(id);
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror   = (e) => reject(e.target.error);
+            }));
+        }
+
+        function deleteGame(id) {
+            openDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                tx.objectStore(DB_STORE).delete(id);
+                tx.oncomplete = resolve;
+                tx.onerror    = (e) => reject(e.target.error);
+            })).then(() => {
+                closePanel();
                 displayGames();
-        
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        activeFilter = btn.dataset.filter;
+            });
+        }
+
+        function createGame(id, name, platform, status, capsuleURL = '') {
+            return { Id: id, Name: name, Platform: platform, CapsuleURL: capsuleURL, Status: status, DateAdded: new Date().toISOString() };
+        }
+
+        /* ── Helpers ── */
+        function getPlatformIcon(platform) {
+            const icons = { 'Steam': 'steam.svg', 'Epic': 'epic.svg', 'Pirated': 'pirate.svg' };
+            return icons[platform] || null;
+        }
+
+        function statusClass(status) {
+            if (status === 'Played')  return 'status-played';
+            if (status === 'Playing') return 'status-playing';
+            return 'status-backlog';
+        }
+
+        /* ── Display ── */
+        let activeFilter = 'All';
+
+        function displayGames() {
+            getGames().then(allGames => {
+                const games = allGames.filter(g => activeFilter === 'All' || g.Status === activeFilter);
+                const container = document.querySelector('.game-container');
+                container.innerHTML = '';
+
+                if (games.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><p>No games here yet.<br>Hit "+ Add Game" to get started.</p></div>`;
+                    return;
+                }
+
+                games.forEach((game, i) => {
+                    const el = document.createElement('div');
+                    el.classList.add('game');
+                    el.style.animationDelay = `${i * 0.04}s`;
+
+                    const icon = getPlatformIcon(game.Platform);
+                    const iconHTML = icon ? `<img class="platform-icon" src="${icon}" alt="${game.Platform}">` : '';
+
+                    el.innerHTML = `
+                        <div class="capsule-wrap">
+                            <img src="${game.CapsuleURL}" alt="${game.Name}" onerror="this.style.background='#1a1f2e';this.removeAttribute('src')">
+                            ${iconHTML}
+                        </div>
+                        <div class="game-info">
+                            <h2>${game.Name}</h2>
+                            <span class="status-badge ${statusClass(game.Status)}"
+                                onclick="event.stopPropagation(); openStatusPopover(this, '${game.Id}')">${game.Status}</span>
+                        </div>
+                        <div class="game-actions">
+                            <button class="btn-delete" onclick="event.stopPropagation(); deleteGame('${game.Id}')">Remove</button>
+                        </div>
+                    `;
+
+                    el.addEventListener('click', () => openPanel(game.Id));
+                    container.appendChild(el);
+                });
+            });
+        }
+
+        /* ── Status Popover ── */
+        function openStatusPopover(badge, gameId) {
+            closeStatusPopover();
+            const popover = document.createElement('div');
+            popover.className = 'status-popover';
+            popover.id = 'status-popover';
+            popover.style.position = 'fixed';
+
+            ['Playing', 'Played', 'Backlog'].forEach(status => {
+                const btn = document.createElement('button');
+                btn.textContent = status;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    updateGameStatus(gameId, status);
+                    closeStatusPopover();
+                };
+                popover.appendChild(btn);
+            });
+
+            document.body.appendChild(popover);
+            const rect = badge.getBoundingClientRect();
+            popover.style.top  = (rect.bottom + 6) + 'px';
+            popover.style.left = rect.left + 'px';
+
+            setTimeout(() => document.addEventListener('click', closeStatusPopover, { once: true }), 0);
+        }
+
+        function closeStatusPopover() {
+            const el = document.getElementById('status-popover');
+            if (el) el.remove();
+        }
+
+        function updateGameStatus(gameId, newStatus) {
+            getGame(gameId).then(game => {
+                if (!game) return;
+                game.Status = newStatus;
+                return addGame(game);
+            }).then(() => {
+                displayGames();
+                // If panel is open for this game, refresh it
+                const panel = document.getElementById('detail-panel');
+                if (panel.classList.contains('open') && panel.dataset.gameId === gameId) {
+                    openPanel(gameId);
+                }
+            });
+        }
+
+        /* ── Detail Panel ── */
+        function openPanel(gameId) {
+            getGame(gameId).then(game => {
+                if (!game) return;
+
+                const panel   = document.getElementById('detail-panel');
+                const content = document.getElementById('panel-content');
+                const backdrop = document.getElementById('panel-backdrop');
+
+                panel.dataset.gameId = gameId;
+
+                const icon    = getPlatformIcon(game.Platform);
+                const iconHTML = icon ? `<img class="platform-icon" src="${icon}" alt="${game.Platform}" style="position:static;width:20px;height:20px;vertical-align:middle;margin-right:0.4rem;">` : '';
+                const rating  = game.Rating || 0;
+                const stars   = [1,2,3,4,5].map(n =>
+                    `<span class="star ${n <= rating ? 'active' : ''}" data-value="${n}" onclick="setPanelRating(${n})">★</span>`
+                ).join('');
+
+                content.innerHTML = `
+                    <div class="panel-hero">
+                        <img src="${game.CapsuleURL}" alt="${game.Name}" onerror="this.style.background='#1a1f2e';this.removeAttribute('src')">
+                        <div class="panel-hero-overlay"></div>
+                        <div class="panel-hero-title">
+                            <h2>${game.Name}</h2>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-meta">
+                            <div class="panel-meta-item">
+                                <span class="panel-meta-label">Platform</span>
+                                <span class="panel-meta-value">${iconHTML}${game.Platform}</span>
+                            </div>
+                            <div class="panel-meta-item">
+                                <span class="panel-meta-label">Status</span>
+                                <span class="status-badge ${statusClass(game.Status)}"
+                                    onclick="event.stopPropagation(); openStatusPopover(this, '${game.Id}')">${game.Status}</span>
+                            </div>
+                            <div class="panel-meta-item">
+                                <span class="panel-meta-label">Added</span>
+                                <span class="panel-meta-value">${new Date(game.DateAdded).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+
+                        <hr class="panel-divider">
+
+                        <div class="panel-field">
+                            <label>Your Rating</label>
+                            <div class="star-rating" id="panel-stars">${stars}</div>
+                        </div>
+
+                        <div class="panel-field">
+                            <label>Notes</label>
+                            <textarea id="panel-notes" placeholder="Thoughts, tips, memorable moments...">${game.Notes || ''}</textarea>
+                        </div>
+
+                        <div class="panel-field">
+                            <label>Hours Played</label>
+                            <input type="number" id="panel-hours" min="0" placeholder="0" value="${game.Hours || ''}">
+                        </div>
+
+                        <button class="btn-save" id="panel-save-btn" onclick="savePanel('${game.Id}')">Save</button>
+
+                        <hr class="panel-divider">
+
+                        <button class="btn-delete" onclick="deleteGame('${game.Id}')">Remove from Library</button>
+                    </div>
+                `;
+
+                panel.classList.add('open');
+                backdrop.classList.add('open');
+            });
+        }
+
+        function closePanel() {
+            document.getElementById('detail-panel').classList.remove('open');
+            document.getElementById('panel-backdrop').classList.remove('open');
+        }
+
+        function setPanelRating(value) {
+            document.querySelectorAll('#panel-stars .star').forEach(star => {
+                star.classList.toggle('active', parseInt(star.dataset.value) <= value);
+            });
+        }
+
+        function savePanel(gameId) {
+            getGame(gameId).then(game => {
+                if (!game) return;
+                const activeStars = document.querySelectorAll('#panel-stars .star.active');
+                game.Rating = activeStars.length;
+                game.Notes  = document.getElementById('panel-notes').value.trim();
+                game.Hours  = parseFloat(document.getElementById('panel-hours').value) || 0;
+                return addGame(game);
+            }).then(() => {
+                const btn = document.getElementById('panel-save-btn');
+                btn.textContent = '✓ Saved';
+                btn.classList.add('btn-save-confirm');
+                setTimeout(() => {
+                    btn.textContent = 'Save';
+                    btn.classList.remove('btn-save-confirm');
+                }, 1500);
+            });
+        }
+
+        /* ── Add Game Form ── */
+        function exportGames() {
+            getGames().then(games => {
+                const blob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'games-backup.json';
+                a.click();
+            });
+        }
+
+        function importGames(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const games = JSON.parse(e.target.result);
+                Promise.all(games.map(game => addGame(game))).then(() => {
+                    displayGames();
+                    alert(`${games.length} games imported successfully!`);
+                });
+            };
+            reader.readAsText(file);
+        }
+
+        /* ── Init ── */
+        document.addEventListener('DOMContentLoaded', () => {
+            displayGames();
+
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    activeFilter = btn.dataset.filter;
+                    displayGames();
+                });
+            });
+
+            // Add game modal
+            const modal = document.getElementById('add-game-modal');
+            const form  = document.getElementById('add-game-form');
+
+            document.getElementById('open-modal').onclick  = () => modal.classList.add('open');
+            document.getElementById('close-modal').onclick = () => modal.classList.remove('open');
+            modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('open'); };
+
+            // Show/hide custom art based on Steam ID input
+            document.getElementById('game-id').addEventListener('input', function() {
+                document.getElementById('custom-art-group').style.display = this.value.trim() ? 'none' : 'block';
+            });
+
+            // Show/hide custom platform input
+            document.getElementById('game-platform-select').addEventListener('change', function() {
+                const customInput = document.getElementById('game-platform-custom');
+                customInput.style.display = this.value === '__custom__' ? 'block' : 'none';
+                if (this.value !== '__custom__') customInput.value = '';
+            });
+
+            // Form submit
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                const idInput = document.getElementById('game-id').value.trim();
+                const name    = document.getElementById('game-name').value.trim();
+                const platformSelect = document.getElementById('game-platform-select');
+                const platform = platformSelect.value === '__custom__'
+                    ? document.getElementById('game-platform-custom').value.trim()
+                    : platformSelect.value;
+                const status = document.getElementById('game-status').value;
+                if (!name || !platform || !status) return;
+
+                const id = idInput || Date.now().toString();
+                const artInput = document.getElementById('game-art');
+                const artFile  = artInput?.files?.length > 0 ? artInput.files[0] : null;
+
+                function finish(capsuleURL) {
+                    const game = createGame(id, name, platform, status, capsuleURL);
+                    addGame(game).then(() => {
+                        form.reset();
+                        document.getElementById('custom-art-group').style.display = 'block';
+                        modal.classList.remove('open');
                         displayGames();
                     });
-                });
-        
-                document.getElementById('game-id').addEventListener('input', function() {
-                    const customArtGroup = document.getElementById('custom-art-group');
-                    customArtGroup.style.display = this.value.trim() ? 'none' : 'block';
-                });
+                }
 
-                document.getElementById('game-platform-select').addEventListener('change', function() {
-                    const customInput = document.getElementById('game-platform-custom');
-                    customInput.style.display = this.value === '__custom__' ? 'block' : 'none';
-                    if (this.value !== '__custom__') customInput.value = '';
-                });
+                if (idInput) {
+                    finish(URL_BASE.replace('%gameID%', idInput));
+                } else if (artFile) {
+                    const reader = new FileReader();
+                    reader.onload  = () => finish(reader.result);
+                    reader.onerror = () => finish('');
+                    reader.readAsDataURL(artFile);
+                } else {
+                    finish('');
+                }
+            };
 
-                const modal  = document.getElementById("add-game-modal");
-                const btn    = document.getElementById("open-modal");
-                const close  = document.getElementById("close-modal");
-                const form   = document.getElementById("add-game-form");
+            // Detail panel close
+            document.getElementById('close-panel').onclick  = closePanel;
+            document.getElementById('panel-backdrop').onclick = closePanel;
 
-                btn.onclick   = () => modal.classList.add('open');
-                close.onclick = () => modal.classList.remove('open');
-                modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('open'); };
-
-                form.onsubmit = function(e) {
-                    e.preventDefault();
-                    const idInput    = document.getElementById('game-id').value.trim();
-                    const name       = document.getElementById('game-name').value.trim();
-                    const platformSelect = document.getElementById('game-platform-select');
-                    const platform   = platformSelect.value === '__custom__'
-                        ? document.getElementById('game-platform-custom').value.trim()
-                        : platformSelect.value;
-                    const status     = document.getElementById('game-status').value;
-
-                    if (!name || !platform || !status) return;
-
-                    const id = idInput || Date.now().toString();
-                    const artInput = document.getElementById('game-art');
-                    const artFile = artInput && artInput.files && artInput.files.length > 0 ? artInput.files[0] : null;
-
-                    function finish(capsuleURL) {
-                        const game = createGame(id, name, platform, status, capsuleURL);
-                        addGame(game).then(() => {
-                            form.reset();
-                            document.getElementById('custom-art-group').style.display = 'block';
-                            modal.classList.remove('open');
-                            displayGames();
-                        });
-                    }
-
-                    if (idInput) {
-                        finish(URL_BASE.replace('%gameID%', idInput));
-                    } else if (artFile) {
-                        const reader = new FileReader();
-                        reader.onload = function() { finish(reader.result); };
-                        reader.onerror = function() { finish(''); };
-                        reader.readAsDataURL(artFile);
-                    } else {
-                        finish('');
-                    }
-                };
+            // Close panel on Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closePanel();
+                    closeStatusPopover();
+                    modal.classList.remove('open');
+                }
             });
-        </script>
-    </body>
+        });
+    </script>
+</body>
 </html>
