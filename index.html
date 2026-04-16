@@ -816,6 +816,23 @@
     </footer>
 
     <script>
+        const fetchGameLength = async (title) => {
+            // Replace with your actual Netlify site URL after you deploy
+            const netlifyUrl = `/.netlify/functions/getGameLength?name=${encodeURIComponent(title)}`;
+            
+            try {
+                const response = await fetch(netlifyUrl);
+                const result = await response.json();
+                console.log("Game Data:", result.data);
+            } catch (err) {
+                console.error("Failed to fetch:", err);
+            }
+        }
+
+        fetchGameLength("Batman: Arkham Asylum");
+    </script>
+
+    <script>
         /* ── DB ── */
         const URL_BASE = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/%gameID%/library_600x900.jpg';
         const DB_NAME  = 'GameTrackerDB';
