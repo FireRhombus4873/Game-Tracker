@@ -823,7 +823,14 @@
             try {
                 const response = await fetch(netlifyUrl);
                 const result = await response.json();
-                console.log("Game Data:", result.data);
+                console.log("Result:", result)
+
+                if (result.data){
+                    console.log("Game Data:", result.data);
+                }
+                else{
+                    console.log("Structure is different than expected.")
+                }
             } catch (err) {
                 console.error("Failed to fetch:", err);
             }
